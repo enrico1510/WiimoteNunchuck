@@ -14,6 +14,14 @@ class DSUServer {
   var timeOut = 20; // seconds
   var portNum = 26760;
   var counter = 0;
+  var counterNunchuk = 0;
+
+  // Modo de movimento: false = o celular move o Wiimote, true = move o Nunchuk.
+  bool nunchukMode = false;
+  // Gravidade estimada (filtro passa-baixa do acelerômetro)
+  List<double> gravity = [0.0, 1.0, 0.0];
+  // Acelerômetro do Wiimote congelado no momento em que o modo Nunchuk foi ligado
+  List<double> frozenAcc = [0.0, 1.0, 0.0];
   Map<InternetAddress, int> clients = new Map();
   List<Device?> slots = [null, null, null, null];
   late UDP socket;
@@ -93,7 +101,84 @@ class DSUServer {
     return 0;
   }
 
+  int get _mainSlot => slots.indexWhere((d) => d != null);
+  int get _nunchukSlot => _mainSlot < 0 ? -1 : (_mainSlot + 1) % 4;
+
+  void setNunchukMode(bool active) {
+    if (active == nunchukMode) return;
+    if (active) {
+      frozenAcc = List<double>.from(gravity);
+    }
+    nunchukMode = active;
+    debugPrint("Motion mode: " + (active ? "Nunchuk" : "Wiimote"));
+  }
+
+  List<int> _f32le(double v) {
+    final bd = ByteData(4);
+    bd.setFloat32(0, v, Endian.little);
+    return [bd.getUint8(0), bd.getUint8(1), bd.getUint8(2), bd.getUint8(3)];
+  }
+
+  // Pacote de dados do pad virtual do Nunchuk (só acelerômetro, sem botões).
+  Uint8List _nunchukPadData(Device device, int idx) {
+    double ax, ay, az;
+    if (nunchukMode) {
+      ax = device.accX;
+      ay = device.accY;
+      az = device.accZ;
+    } else {
+      ax = gravity[0];
+      ay = gravity[1];
+      az = gravity[2];
+    }
+    final time = DateTime.now().microsecondsSinceEpoch;
+    final c = counterNunchuk;
+    counterNunchuk += 1;
+    return Uint8List.fromList([
+      idx,
+      0x02,
+      device.model,
+      0x02,
+      0xFA, 0xCE, 0xB0, 0x0C, 0x00, 0x12, // MAC (diferente do pad principal)
+      0x05,
+      0x01,
+      c & 0xFF, (c >> 8) & 0xFF, (c >> 16) & 0xFF, (c >> 24) & 0xFF,
+      0x00, 0x00, // buttons1, buttons2
+      0x00, 0x00, // PS, touch
+      127, 127, 127, 127, // sticks centralizados
+      0x00, 0x00, 0x00, 0x00, // dpad analógico
+      0x00, 0x00, 0x00, 0x00, // botões de face analógicos
+      0x00, 0x00, // r1, l1
+      0x00, 0x00, // r2, l2
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // touchpad 1
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // touchpad 2
+      time & 0xFF,
+      (time >> 8) & 0xFF,
+      (time >> 16) & 0xFF,
+      (time >> 24) & 0xFF,
+      (time >> 32) & 0xFF,
+      (time >> 40) & 0xFF,
+      (time >> 48) & 0xFF,
+      (time >> 56) & 0xFF,
+      ..._f32le(ax), ..._f32le(ay), ..._f32le(az),
+      ..._f32le(0.0), ..._f32le(0.0), ..._f32le(0.0), // Nunchuk não tem giroscópio
+    ]);
+  }
+
   sendPorts(int index) {
+    if (slots[index] == null && index == _nunchukSlot) {
+      // Pad virtual do Nunchuk: aparece no Dolphin como DSUClient/<slot>/...
+      Uint8List data = Uint8List.fromList([
+        index,
+        0x02,
+        slots[_mainSlot]!.model,
+        0x01,
+        0xFA, 0xCE, 0xB0, 0x0C, 0x00, 0x12,
+        0x05,
+        0x00,
+      ]);
+      return new Message().make(Message.TYPE_PORTS, data);
+    }
     if (slots[index] != null) {
       Device device = slots[index]!;
       Uint8List data = Uint8List.fromList([
@@ -159,19 +244,35 @@ class DSUServer {
 
       var time = new DateTime.now().microsecondsSinceEpoch;
 
+      // Gravidade estimada (acompanha o celular enquanto ele move o Wiimote)
+      if (!nunchukMode) {
+        const alpha = 0.004;
+        gravity[0] += (device.accX - gravity[0]) * alpha;
+        gravity[1] += (device.accY - gravity[1]) * alpha;
+        gravity[2] += (device.accZ - gravity[2]) * alpha;
+      }
+
+      // Modo Nunchuk: o Wiimote fica travado (giroscópio zerado, acc congelado)
+      double wAccX = nunchukMode ? frozenAcc[0] : device.accX;
+      double wAccY = nunchukMode ? frozenAcc[1] : device.accY;
+      double wAccZ = nunchukMode ? frozenAcc[2] : device.accZ;
+      double wGyX = nunchukMode ? 0.0 : device.motionX;
+      double wGyY = nunchukMode ? 0.0 : device.motionY;
+      double wGyZ = nunchukMode ? 0.0 : device.motionZ;
+
       var bdAccY = new ByteData(4);
-      bdAccY.setFloat32(0, device.accY);
+      bdAccY.setFloat32(0, wAccY);
       var bdAccZ = new ByteData(4);
-      bdAccZ.setFloat32(0, device.accZ);
+      bdAccZ.setFloat32(0, wAccZ);
       var bdAccX = new ByteData(4);
-      bdAccX.setFloat32(0, device.accX);
+      bdAccX.setFloat32(0, wAccX);
 
       var bdMotionY = new ByteData(4);
-      bdMotionY.setFloat32(0, device.motionY);
+      bdMotionY.setFloat32(0, wGyY);
       var bdMotionZ = new ByteData(4);
-      bdMotionZ.setFloat32(0, device.motionZ);
+      bdMotionZ.setFloat32(0, wGyZ);
       var bdMotionX = new ByteData(4);
-      bdMotionX.setFloat32(0, device.motionX);
+      bdMotionX.setFloat32(0, wGyX);
 
       Uint8List data = Uint8List.fromList([
         i,
@@ -251,6 +352,9 @@ class DSUServer {
       counter += 1;
 
       this.reportToClients(new Message().make(Message.TYPE_DATA, data));
+      this.reportToClients(
+        new Message().make(Message.TYPE_DATA, _nunchukPadData(device, (i + 1) % 4)),
+      );
     });
   }
 
@@ -312,6 +416,10 @@ class DSUServer {
   }
 
   void changeSlot(ChangeSlotEvent changeSlotEvent) {
+    // Mesmo slot: nada a fazer (antes isso zerava o slot e desconectava o pad)
+    if (changeSlotEvent.oldSlot == changeSlotEvent.newSlot) {
+      return;
+    }
     final swapDevice = this.slots[changeSlotEvent.oldSlot];
     this.slots[changeSlotEvent.newSlot] = swapDevice;
     this.slots[changeSlotEvent.oldSlot] = null;

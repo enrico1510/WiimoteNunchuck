@@ -171,7 +171,9 @@ class Device {
     final prevSlot = slot;
     slot = deviceSettings.slot;
 
-    serverSendPort.send(ChangeSlotEvent(prevSlot, slot));
+    if (prevSlot != slot) {
+      serverSendPort.send(ChangeSlotEvent(prevSlot, slot));
+    }
   }
 
   void onGyroSettingsChanged() {

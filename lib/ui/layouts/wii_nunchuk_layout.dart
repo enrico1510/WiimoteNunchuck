@@ -7,6 +7,7 @@ import 'package:wiimote_dsu/ui/analog_thumbstick.dart';
 import 'package:wiimote_dsu/ui/buttons/button_rectangle.dart';
 import 'package:wiimote_dsu/ui/buttons/button_round.dart';
 import 'package:wiimote_dsu/ui/dpad.dart';
+import 'package:wiimote_dsu/ui/imu_toggle_button.dart';
 import 'package:wiimote_dsu/ui/layouts/device_layout.dart';
 import 'package:wiimote_dsu/ui/minus_home_plus_buttons.dart';
 import 'package:wiimote_dsu/ui/one_two_buttons.dart';
@@ -18,6 +19,9 @@ import 'package:wiimote_dsu/ui/one_two_buttons.dart';
 ///
 /// Mapeamento DSU (casa com WiiMoteDSU-Nunchuk.ini):
 ///   stick -> Left X/Y, C -> R1, Z -> L1, SHAKE -> R3
+///
+/// O botão "MOTION" alterna o movimento do celular entre o Wiimote e o
+/// Nunchuk (ver ImuToggleButton).
 class WiiNunchukLayout extends StatelessWidget implements DeviceLayout {
   static const String name = "WiiMote+Nunchuk";
   static const DeviceOrientation preferredOrientation =
@@ -61,6 +65,8 @@ class WiiNunchukLayout extends StatelessWidget implements DeviceLayout {
               ),
             ],
           ),
+          SizedBox(height: h * 0.015),
+          ImuToggleButton(width: w * 0.7, height: h * 0.05),
           SizedBox(height: h * 0.015),
           SizedBox(
             width: h * 0.15,
