@@ -1,0 +1,97 @@
+name: Test
+
+on:
+  push:
+    branches: [master, develop]
+  pull_request:
+    branches: [master, develop]
+
+concurrency: 
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout 🛎️
+        uses: actions/checkout@v6
+        with:
+          token: ${{ secrets.API_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+
+      # TODO: Run tests
+
+  build-ios:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout 🛎️
+        uses: actions/checkout@v6
+        with:
+          token: ${{ secrets.API_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Read .fvmrc
+        run: echo "FVMRC=$(jq -c . < .fvmrc)" >> $GITHUB_ENV
+        shell: bash
+
+      - name: Setup Flutter 📐
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ fromJson(env.FVMRC).flutter }}
+
+      - name: Deps 📝
+        run: flutter pub get
+
+      - name: Build iOS 🏗️
+        run: flutter build ios --no-codesign --release
+
+  build-android:
+    runs-on: macos-latest
+
+    env:
+      JAVA_VERSION: "17.0"
+
+    steps:
+      - name: Checkout 🛎️
+        uses: actions/checkout@v6
+        with:
+          token: ${{ secrets.API_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Read .fvmrc
+        run: echo "FVMRC=$(jq -c . < .fvmrc)" >> $GITHUB_ENV
+        shell: bash
+
+      - name: Setup Flutter 📐
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ fromJson(env.FVMRC).flutter }}
+
+      - name: Setup Java 📐
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Deps 📝
+        run: flutter pub get
+
+      - name: Build Android 🏗️
+        run: flutter build apk --release
+
+  release:
+    needs: [ test, build-ios, build-android ]
+  
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout 🛎️
+        uses: actions/checkout@v6
+        with:
+          token: ${{ secrets.API_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Version 📦
+        if: github.event_name != 'pull_request'
+        uses: cycjimmy/semantic-release-action@v4.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.API_GITHUB_TOKEN }}

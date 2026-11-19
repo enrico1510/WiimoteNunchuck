@@ -1,0 +1,37 @@
+name: Build APK (teste, assinado com chave debug)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    env:
+      JAVA_VERSION: "17.0"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Read .fvmrc
+        run: echo "FVMRC=$(jq -c . < .fvmrc)" >> $GITHUB_ENV
+        shell: bash
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ fromJson(env.FVMRC).flutter }}
+
+      - run: flutter pub get
+      - run: flutter build apk --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: WiiMoteDSU-nunchuk-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
