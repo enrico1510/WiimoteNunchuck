@@ -89,10 +89,12 @@ class Device {
   };
 
   var state = {
-    "left_analog_x": 0x00,
-    "left_analog_y": 0x00,
-    "right_analog_x": 0x00,
-    "right_analog_y": 0x00,
+    // Sticks começam centralizados (0x80). Com 0x00 eles ficavam sempre no
+    // máximo negativo (Left/Right X-, Y-) nos layouts que não têm o stick.
+    "left_analog_x": 0x80,
+    "left_analog_y": 0x80,
+    "right_analog_x": 0x80,
+    "right_analog_y": 0x80,
     "dpad_up": 0x00,
     "dpad_down": 0x00,
     "dpad_left": 0x00,

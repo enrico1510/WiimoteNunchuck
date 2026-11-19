@@ -145,7 +145,7 @@ class DSUServer {
       c & 0xFF, (c >> 8) & 0xFF, (c >> 16) & 0xFF, (c >> 24) & 0xFF,
       0x00, 0x00, // buttons1, buttons2
       0x00, 0x00, // PS, touch
-      127, 127, 127, 127, // sticks centralizados
+      128, 128, 128, 128, // sticks centralizados
       0x00, 0x00, 0x00, 0x00, // dpad analógico
       0x00, 0x00, 0x00, 0x00, // botões de face analógicos
       0x00, 0x00, // r1, l1
