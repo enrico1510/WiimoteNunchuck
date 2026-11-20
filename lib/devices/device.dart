@@ -85,7 +85,9 @@ class Device {
     // Nunchuk (layout "WiiMote+Nunchuk"): mesmo mapeamento do WiiMoteDSU.ini
     "C": "button_r1",
     "Z": "button_l1",
-    "SHAKE": "button_r3"
+    "SHAKE": "button_r3",
+    // Botão "MOTION" (liga/desliga, fica travado): enviado como L3
+    "MOTION": "button_l3"
   };
 
   var state = {

@@ -8,7 +8,6 @@ import 'package:wiimote_dsu/server/events/acc_event.dart';
 import 'package:wiimote_dsu/server/events/button_event.dart';
 import 'package:wiimote_dsu/server/events/change_slot_event.dart';
 import 'package:wiimote_dsu/server/events/gyro_event.dart';
-import 'package:wiimote_dsu/server/events/imu_mode_event.dart';
 import 'package:wiimote_dsu/server/events/multi_button_event.dart';
 
 class ServerIsolate {
@@ -45,8 +44,6 @@ class ServerIsolate {
         server.registerDevice(data);
       } else if (data is ChangeSlotEvent) {
         server.changeSlot(data);
-      } else if (data is ImuModeEvent) {
-        server.setNunchukMode(data.nunchukActive);
       } else if (data is GyroEvent) {
         server.slots[data.slot]?.setGyro(data);
       } else if (data is AccEvent) {

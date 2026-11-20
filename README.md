@@ -70,11 +70,9 @@ stick -> `Left X/Y`, C -> `R1`, Z -> `L1`, SHAKE -> `R3` (o resto igual ao layou
 Use o perfil `WiiMoteDSU-Nunchuk.ini` (mesma pasta do `WiiMoteDSU.ini`) e deixe *Extension* = Nunchuk no Dolphin.
 A linha `Device = DSUClient/0/...` do perfil precisa bater com a descrição que você deu ao servidor DSU no Dolphin.
 
-O botão **MOTION: WIIMOTE / NUNCHUK** (só nesse layout) passa o movimento do celular para o Nunchuk:
-o Wiimote fica travado (giroscópio zerado, acelerômetro congelado) e o acelerômetro do Nunchuk é
-enviado num pad DSU virtual extra (`DSUClient/1/...`, se o pad principal estiver no slot 0).
-O perfil `WiiMoteDSU-Nunchuk.ini` já mapeia `Nunchuk/IMUAccelerometer` para esse pad
-(a parte `DualShock 3` precisa bater com a descrição do servidor no Dolphin).
+O botão **MOTION: WIIMOTE / NUNCHUK** (só nesse layout) fica travado enviando **L3** enquanto estiver em NUNCHUK.
+O `WiiMoteDSU-Nunchuk.ini` usa esse L3 em expressões `if(...)`: com L3 ligado, o giroscópio e o acelerômetro do Wiimote
+vão a zero (ponteiro parado) e o acelerômetro do Nunchuk passa a seguir o celular. Não há segundo pad DSU.
 
 ## Credits
 

@@ -3,16 +3,14 @@ import 'dart:isolate';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:wiimote_dsu/server/events/imu_mode_event.dart';
+import 'package:wiimote_dsu/models/device_settings.dart';
+import 'package:wiimote_dsu/server/events/button_event.dart';
 import 'package:wiimote_dsu/ui/theme/wii_controller_theme.dart';
 
-/// Alterna quem recebe o movimento do celular (giroscópio/acelerômetro):
-///  - MOTION: WIIMOTE  -> o celular move o Wiimote (padrão)
-///  - MOTION: NUNCHUK  -> o Wiimote fica travado (giroscópio zerado,
-///                        acelerômetro congelado) e o celular move o Nunchuk
-///
-/// O movimento do Nunchuk sai num pad DSU virtual extra (DSUClient/1 quando o
-/// pad principal está no slot 0).
+/// Botão liga/desliga "MOTION": fica travado enviando L3 enquanto estiver em
+/// NUNCHUK. O Dolphin usa esse sinal (L3) numa expressão `if(...)` para zerar o
+/// giroscópio/acelerômetro do Wiimote e liberar o acelerômetro do Nunchuk
+/// (ver WiiMoteDSU-Nunchuk.ini). O app não envia mais nada além do L3.
 class ImuToggleButton extends StatefulWidget {
   final double width;
   final double height;
@@ -27,20 +25,26 @@ class ImuToggleButton extends StatefulWidget {
 class _ImuToggleButtonState extends State<ImuToggleButton> {
   bool _nunchuk = false;
   late final SendPort _port;
+  late final int _slot;
 
   @override
   void initState() {
     super.initState();
     _port = context.read<SendPort>();
-    // Sempre começa no modo Wiimote.
-    _port.send(ImuModeEvent(false));
+    _slot = context.read<DeviceSettings>().slot;
+    // Sempre começa no modo Wiimote (L3 solto).
+    _send(false);
   }
 
   @override
   void dispose() {
-    // Ao sair do layout, devolve o movimento ao Wiimote.
-    _port.send(ImuModeEvent(false));
+    // Ao sair do layout, solta o L3.
+    _send(false);
     super.dispose();
+  }
+
+  void _send(bool on) {
+    _port.send(ButtonEvent(_slot, "MOTION", on ? 0xFF : 0x00));
   }
 
   void _toggle() {
@@ -48,7 +52,7 @@ class _ImuToggleButtonState extends State<ImuToggleButton> {
     setState(() {
       _nunchuk = !_nunchuk;
     });
-    _port.send(ImuModeEvent(_nunchuk));
+    _send(_nunchuk);
   }
 
   @override
